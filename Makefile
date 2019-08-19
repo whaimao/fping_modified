@@ -1,8 +1,6 @@
 
 INCLUDES := -I. 
 
-CCFLAGS := -std=c99
-
 #for rokid toolchain
 #PREFIX := /data/linux/rokid/rokid/output/banban_m2_a113/host/usr/bin/aarch64-linux-gnu-
 
@@ -15,16 +13,17 @@ $(wildcard ./*.c)
 
 OBJFILE = $(CFILES:.c=.o)
 
+CFLAGS = -O2
 
 TARGET = ping
 
 all:$(TARGET)
 
 $(TARGET): $(OBJFILE)
-	$(CC) $^ $(LIBS) -Wall -o $@
+	$(CC) $^ $(LIBS)  -o $@
 
 %.o:%.c
-	$(CC) -o $@ $(CCFLAGS)  -c $< $(INCLUDES)
+	$(CC) -o $@ $(CFLAGS)  -c $< $(INCLUDES)
 
 clean:
 		rm -f ${TARGET} ${OBJFILE}
