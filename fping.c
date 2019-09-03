@@ -188,8 +188,8 @@ typedef struct host_entry {
     int ev_type; /* event type */
 
     int i; /* index into array */
-    char* name; /* name as given by user */
-    char* host; /* text description of host */
+    char name[50]; /* name as given by user */
+    char host[50]; /* text description of host */
     char* pad; /* pad to align print names */
     struct sockaddr_storage saddr; /* internet address */
     socklen_t saddr_len;
@@ -296,8 +296,8 @@ char* filename = NULL; /* file containing hosts to ping */
 
 /*** forward declarations ***/
 
-void add_name(const char* name);
-void add_addr(const char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
+int add_name(const char* name);
+void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
 char* na_cat(char* name, struct in_addr ipaddr);
 void crash_and_burn(char* message);
 void errno_crash_and_burn(char* message);
@@ -458,10 +458,12 @@ int ping(const char* url)
     }
 #endif
 
+    num_hosts = 0;
+    if(!add_name(url)){
+    	return -1;//无法解决host
+    }
 
-    add_name(url);
 
-    num_hosts = 1;
 
     if (src_addr_set && socket4 >= 0) {
         socket_set_src_addr_ipv4(socket4, &src_addr);
@@ -1761,12 +1763,11 @@ int wait_for_reply(long wait_time)
 
 ************************************************************/
 
-void add_name(const char* name)
+int add_name(const char* name)
 {
     struct addrinfo *res0, *res, hints;
     int ret_ga;
     //TODO delet printname
-    char *printname;
     char namebuf[256];
     char addrbuf[256];
 
@@ -1792,7 +1793,7 @@ void add_name(const char* name)
         if (!quiet_flag)
             print_warning("%s: %s\n", name, gai_strerror(ret_ga));
         num_noaddress++;
-        return;
+        return -1;
     }
 
     /* NOTE: we could/should loop with res on all addresses like this:
@@ -1800,12 +1801,12 @@ void add_name(const char* name)
      * We don't do it yet, however, because is is an incompatible change
      * (need to implement a separate option for this)
      */
-    for (res = res0; res; res = res->ai_next) {
-        /* name_flag: addr -> name lookup requested) */
+   /* for (res = res0; res; res = res->ai_next) {
+         name_flag: addr -> name lookup requested)
         if (name_flag || rdns_flag) {
             int do_rdns = rdns_flag ? 1 : 0;
             if (name_flag) {
-                /* Was it a numerical address? Only then do a rdns-query */
+                 Was it a numerical address? Only then do a rdns-query
                 struct addrinfo* nres;
                 hints.ai_flags = AI_NUMERICHOST;
                 if (getaddrinfo(name, NULL, &hints, &nres) == 0) {
@@ -1813,7 +1814,7 @@ void add_name(const char* name)
                     freeaddrinfo(nres);
                 }
             }
-
+            // https://blog.csdn.net/jctian000/article/details/81912346 , 直接使用name就可以
             if (do_rdns && getnameinfo(res->ai_addr, res->ai_addrlen, namebuf, sizeof(namebuf) / sizeof(char), NULL, 0, 0) == 0) {
                 printname = namebuf;
             }
@@ -1825,7 +1826,7 @@ void add_name(const char* name)
             printname = name;
         }
 
-        /* addr_flag: name -> addr lookup requested */
+         addr_flag: name -> addr lookup requested
         if (addr_flag) {
             int ret;
             ret = getnameinfo(res->ai_addr, res->ai_addrlen, addrbuf,
@@ -1840,7 +1841,7 @@ void add_name(const char* name)
             if (name_flag || rdns_flag) {
                 char nameaddrbuf[512];
                 snprintf(nameaddrbuf, sizeof(nameaddrbuf) / sizeof(char), "%s (%s)", printname, addrbuf);
-                add_addr(name, nameaddrbuf, res->ai_addr, res->ai_addrlen);
+                add_addr(name, name, res->ai_addr, res->ai_addrlen);
             }
             else {
                 add_addr(name, addrbuf, res->ai_addr, res->ai_addrlen);
@@ -1853,9 +1854,13 @@ void add_name(const char* name)
         if (!multif_flag) {
             break;
         }
-    }
+    }*/
+    //没有必要解析所有的ip
+    add_addr(name, name, res->ai_addr, res->ai_addrlen);
 
     freeaddrinfo(res0);
+
+    return 0;
 }
 
 /************************************************************
@@ -1871,7 +1876,7 @@ void add_name(const char* name)
 
 ************************************************************/
 
-void add_addr(const char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
+void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
 {
     HOST_ENTRY* p;
     int n, *i;
@@ -1883,8 +1888,8 @@ void add_addr(const char* name, char* host, struct sockaddr* ipaddr, socklen_t i
     memset((char*)p, 0, sizeof(HOST_ENTRY));
 
     //TODO strdup
-    p->name = strdup(name);
-    p->host = strdup(host);
+    snprintf(p->name, 50, name);
+    snprintf(p->host, 50, host);
     memcpy(&p->saddr, ipaddr, ipaddr_len);
     p->saddr_len = ipaddr_len;
     p->timeout = timeout;
