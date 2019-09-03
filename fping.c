@@ -343,7 +343,17 @@ int addr_cmp(struct sockaddr* a, struct sockaddr* b);
 
 ************************************************************/
 
-int main(int argc, char** argv)
+int main(){
+	int ret = ping("www.baidu.com");
+	if(ret == 0){
+		printf("network is alive\n");
+	}else{
+		printf("network is not alive\n");
+	}
+	return 0;
+}
+
+int ping(const char* url)
 {
     int c, i, n;
     char* buf;
