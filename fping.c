@@ -42,7 +42,7 @@ extern "C" {
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
-
+#include <unistd.h>
 #include "config.h"
 #include "seqmap.h"
 
@@ -337,12 +337,15 @@ int addr_cmp(struct sockaddr* a, struct sockaddr* b);
 int ping(const char* url);
 
 int main(){
-	int ret = ping("www.baidu.com");
-	if(ret == 0){
-		printf("network is alive\n");
-	}else{
-		printf("network is not alive\n");
+	while(1){
+		int ret = ping("www.baidu.com");
+		if(ret == 0){
+			printf("network is alive\n");
+		}else{
+			printf("network is not alive\n");
+		}
 	}
+	sleep(1);
 	return 0;
 }
 
