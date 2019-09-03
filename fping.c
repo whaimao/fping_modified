@@ -298,9 +298,7 @@ char* filename = NULL; /* file containing hosts to ping */
 
 int add_name(const char* name);
 int add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
-char* na_cat(char* name, struct in_addr ipaddr);
 void errno_crash_and_burn(char* message);
-char* get_host_by_address(struct in_addr in);
 void remove_job(HOST_ENTRY* h);
 int send_ping(HOST_ENTRY* h);
 long timeval_diff(struct timeval* a, struct timeval* b);
@@ -317,7 +315,6 @@ char* sprint_tm(int t);
 void ev_enqueue(HOST_ENTRY* h);
 HOST_ENTRY* ev_dequeue();
 void ev_remove(HOST_ENTRY* h);
-void add_range(char*, char*);
 void print_warning(char* fmt, ...);
 int addr_cmp(struct sockaddr* a, struct sockaddr* b);
 
@@ -540,61 +537,6 @@ int ping(const char* url)
 
 
 
-void add_range(char* start, char* end)
-{
-    struct addrinfo addr_hints;
-    struct addrinfo* addr_res;
-    unsigned long start_long;
-    unsigned long end_long;
-    int ret;
-
-    /* parse start address (IPv4 only) */
-    memset(&addr_hints, 0, sizeof(struct addrinfo));
-    addr_hints.ai_family = AF_UNSPEC;
-    addr_hints.ai_flags = AI_NUMERICHOST;
-    ret = getaddrinfo(start, NULL, &addr_hints, &addr_res);
-    if (ret) {
-        printf("can't parse address %s: %s\n", start, gai_strerror(ret));
-        exit(1);
-    }
-    if (addr_res->ai_family != AF_INET) {
-        freeaddrinfo(addr_res);
-        printf("-g works only with IPv4 addresses\n");
-        exit(1);
-    }
-    start_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
-
-    /* parse end address (IPv4 only) */
-    memset(&addr_hints, 0, sizeof(struct addrinfo));
-    addr_hints.ai_family = AF_UNSPEC;
-    addr_hints.ai_flags = AI_NUMERICHOST;
-    ret = getaddrinfo(end, NULL, &addr_hints, &addr_res);
-    if (ret) {
-        printf("can't parse address %s: %s\n", end, gai_strerror(ret));
-        exit(1);
-    }
-    if (addr_res->ai_family != AF_INET) {
-        freeaddrinfo(addr_res);
-        printf("-g works only with IPv4 addresses\n");
-        exit(1);
-    }
-    end_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
-    freeaddrinfo(addr_res);
-
-    if (end_long > start_long + MAX_GENERATE) {
-        printf("-g parameter generates too many addresses\n");
-        exit(1);
-    }
-
-    /* generate */
-    for (; start_long <= end_long; start_long++) {
-        struct in_addr in_addr_tmp;
-        char buffer[20];
-        in_addr_tmp.s_addr = htonl(start_long);
-        inet_ntop(AF_INET, &in_addr_tmp, buffer, sizeof(buffer));
-        add_name(buffer);
-    }
-}
 
 void main_loop()
 {
