@@ -36,7 +36,6 @@ extern "C" {
 
 #include "fping.h"
 #include "options.h"
-#include "optparse.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -283,7 +282,7 @@ struct timezone tz;
 
 /* switches */
 int generate_flag = 0; /* flag for IP list generation */
-int verbose_flag, quiet_flag, stats_flag, unreachable_flag, alive_flag;
+int quiet_flag, stats_flag, unreachable_flag, alive_flag;
 int elapsed_flag, version_flag, count_flag, loop_flag, netdata_flag;
 int per_recv_flag, report_all_rtts_flag, name_flag, addr_flag, backoff_flag, rdns_flag;
 int multif_flag, timeout_flag;
@@ -358,7 +357,6 @@ int ping(const char* url)
     char* buf;
     int tos = 0;
     HOST_ENTRY* cursor;
-    struct optparse optparse_state;
 
 
     socket4 = open_ping_socket_ipv4(ping_data_size);
@@ -372,340 +370,6 @@ int ping(const char* url)
 #endif
 
 
-    optparse_init(&optparse_state, argv);
-    ident = getpid() & 0xFFFF;
-    verbose_flag = 1;
-    backoff_flag = 1;
-    opterr = 1;
-
-    /* get command line options */
-
-    struct optparse_long longopts[] = {
-        { "ipv4", '4', OPTPARSE_NONE },
-        { "ipv6", '6', OPTPARSE_NONE },
-        { "alive", 'a', OPTPARSE_NONE },
-        { "addr", 'A', OPTPARSE_NONE },
-        { "size", 'b', OPTPARSE_REQUIRED },
-        { "backoff", 'B', OPTPARSE_REQUIRED },
-        { "count", 'c', OPTPARSE_REQUIRED },
-        { "vcount", 'C', OPTPARSE_REQUIRED },
-        { "rdns", 'd', OPTPARSE_NONE },
-        { "timestamp", 'D', OPTPARSE_NONE },
-        { "elapsed", 'e', OPTPARSE_NONE },
-        { "file", 'f', OPTPARSE_REQUIRED },
-        { "generate", 'g', OPTPARSE_NONE },
-        { "help", 'h', OPTPARSE_NONE },
-        { "ttl", 'H', OPTPARSE_REQUIRED },
-        { "interval", 'i', OPTPARSE_REQUIRED },
-        { "iface", 'I', OPTPARSE_REQUIRED },
-        { "loop", 'l', OPTPARSE_NONE },
-        { "all", 'm', OPTPARSE_NONE },
-        { "dontfrag", 'M', OPTPARSE_NONE },
-        { "name", 'n', OPTPARSE_NONE },
-        { "netdata", 'N', OPTPARSE_NONE },
-        { "outage", 'o', OPTPARSE_NONE },
-        { "tos", 'O', OPTPARSE_REQUIRED },
-        { "period", 'p', OPTPARSE_REQUIRED },
-        { "quiet", 'q', OPTPARSE_NONE },
-        { "squiet", 'Q', OPTPARSE_REQUIRED },
-        { "retry", 'r', OPTPARSE_REQUIRED },
-        { "random", 'R', OPTPARSE_NONE },
-        { "stats", 's', OPTPARSE_NONE },
-        { "src", 'S', OPTPARSE_REQUIRED },
-        { "timeout", 't', OPTPARSE_REQUIRED },
-        { NULL, 'T', OPTPARSE_REQUIRED },
-        { "unreach", 'u', OPTPARSE_NONE },
-        { "version", 'v', OPTPARSE_NONE },
-        { "reachable", 'x', OPTPARSE_REQUIRED },
-        { 0, 0, 0 }
-    };
-
-    float opt_value_float;
-    while ((c = optparse_long(&optparse_state, longopts, NULL)) != EOF) {
-        switch (c) {
-        case '4':
-            if (hints_ai_family != AF_UNSPEC) {
-                fprintf(stderr, "%s: can't specify both -4 and -6\n", prog);
-                exit(1);
-            }
-            hints_ai_family = AF_INET;
-            break;
-        case '6':
-#ifdef IPV6
-            if (hints_ai_family != AF_UNSPEC) {
-                fprintf(stderr, "%s: can't specify both -4 and -6\n", prog);
-                exit(1);
-            }
-            hints_ai_family = AF_INET6;
-#else
-            fprintf(stderr, "%s: IPv6 not supported by this binary\n", prog);
-            exit(1);
-#endif
-            break;
-        case 'M':
-#ifdef IP_MTU_DISCOVER
-            if (socket4 >= 0) {
-                int val = IP_PMTUDISC_DO;
-                if (setsockopt(socket4, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val))) {
-                    perror("setsockopt IP_MTU_DISCOVER");
-                }
-            }
-#ifdef IPV6
-            if (socket6 >= 0) {
-                int val = IPV6_PMTUDISC_DO;
-                if (setsockopt(socket6, IPPROTO_IPV6, IPV6_MTU_DISCOVER, &val, sizeof(val))) {
-                    perror("setsockopt IPV6_MTU_DISCOVER");
-                }
-            }
-#endif
-#else
-            fprintf(stderr, "%s, -M option not supported on this platform\n", prog);
-            exit(1);
-#endif
-            break;
-
-        case 't':
-            if (!sscanf(optparse_state.optarg, "%f", &opt_value_float))
-                usage(1);
-            if (opt_value_float < 0) {
-                usage(1);
-            }
-            timeout = opt_value_float * 100;
-            timeout_flag = 1;
-            break;
-
-        case 'r':
-            if (!sscanf(optparse_state.optarg, "%u", &retry))
-                usage(1);
-            break;
-
-        case 'i':
-            if (!sscanf(optparse_state.optarg, "%f", &opt_value_float))
-                usage(1);
-            if (opt_value_float < 0) {
-                usage(1);
-            }
-            interval = opt_value_float * 100;
-            break;
-
-        case 'p':
-            if (!sscanf(optparse_state.optarg, "%f", &opt_value_float))
-                usage(1);
-            if (opt_value_float < 0) {
-                usage(1);
-            }
-            perhost_interval = opt_value_float * 100;
-
-            break;
-
-        case 'c':
-            if (!(count = (unsigned int)atoi(optparse_state.optarg)))
-                usage(1);
-
-            count_flag = 1;
-            break;
-
-        case 'C':
-            if (!(count = (unsigned int)atoi(optparse_state.optarg)))
-                usage(1);
-
-            count_flag = 1;
-            report_all_rtts_flag = 1;
-            break;
-
-        case 'b':
-            if (!sscanf(optparse_state.optarg, "%u", &ping_data_size))
-                usage(1);
-
-            break;
-
-        case 'h':
-            usage(0);
-            break;
-
-        case 'q':
-            verbose_flag = 0;
-            quiet_flag = 1;
-            break;
-
-        case 'Q':
-            verbose_flag = 0;
-            quiet_flag = 1;
-            if (!sscanf(optparse_state.optarg, "%f", &opt_value_float))
-                usage(1);
-            if (opt_value_float < 0) {
-                usage(1);
-            }
-            report_interval = opt_value_float * 100000;
-
-            break;
-
-        case 'e':
-            elapsed_flag = 1;
-            break;
-
-        case 'm':
-            multif_flag = 1;
-            break;
-
-        case 'N':
-            netdata_flag = 1;
-            break;
-
-        case 'n':
-            name_flag = 1;
-            if (rdns_flag) {
-                fprintf(stderr, "%s: use either one of -d or -n\n", prog);
-                exit(1);
-            }
-            break;
-
-        case 'd':
-            rdns_flag = 1;
-            if (name_flag) {
-                fprintf(stderr, "%s: use either one of -d or -n\n", prog);
-                exit(1);
-            }
-            break;
-
-        case 'A':
-            addr_flag = 1;
-            break;
-
-        case 'B':
-            if (!(backoff = atof(optparse_state.optarg)))
-                usage(1);
-
-            break;
-
-        case 's':
-            stats_flag = 1;
-            break;
-
-        case 'D':
-            timestamp_flag = 1;
-            break;
-
-        case 'R':
-            random_data_flag = 1;
-            break;
-
-        case 'l':
-            loop_flag = 1;
-            backoff_flag = 0;
-            break;
-
-        case 'u':
-            unreachable_flag = 1;
-            break;
-
-        case 'a':
-            alive_flag = 1;
-            break;
-
-        case 'H':
-            if (!(ttl = (u_int)atoi(optparse_state.optarg)))
-                usage(1);
-            break;
-
-#if defined(DEBUG) || defined(_DEBUG)
-        case 'z':
-            if (!(debugging = (unsigned int)atoi(optparse_state.optarg)))
-                usage(1);
-
-            break;
-#endif /* DEBUG || _DEBUG */
-
-        case 'v':
-            printf("%s: Version %s\n", prog, VERSION);
-            printf("%s: comments to %s\n", prog, EMAIL);
-            exit(0);
-
-        case 'x':
-            if (!(min_reachable = (unsigned int)atoi(optparse_state.optarg)))
-                usage(1); 
-            break;
-
-        case 'f':
-            filename = optparse_state.optarg;
-            break;
-
-        case 'g':
-            /* use IP list generation */
-            /* mutually exclusive with using file input or command line targets */
-            generate_flag = 1;
-            break;
-
-        case 'S':
-            if (inet_pton(AF_INET, optparse_state.optarg, &src_addr)) {
-                src_addr_set = 1;
-                break;
-            }
-#ifdef IPV6
-            if (inet_pton(AF_INET6, optparse_state.optarg, &src_addr6)) {
-                src_addr6_set = 1;
-                break;
-            }
-#endif
-            fprintf(stderr, "%s: can't parse source address: %s\n", prog, optparse_state.optarg);
-            exit(1);
-
-        case 'I':
-#ifdef SO_BINDTODEVICE
-            if (socket4 >= 0) {
-                if (setsockopt(socket4, SOL_SOCKET, SO_BINDTODEVICE, optparse_state.optarg, strlen(optparse_state.optarg))) {
-                    perror("binding to specific interface (SO_BINTODEVICE)");
-                }
-            }
-#ifdef IPV6
-            if (socket6 >= 0) {
-                if (setsockopt(socket6, SOL_SOCKET, SO_BINDTODEVICE, optparse_state.optarg, strlen(optparse_state.optarg))) {
-                    perror("binding to specific interface (SO_BINTODEVICE), IPV6");
-                }
-            }
-#endif
-#else
-            printf("%s: cant bind to a particular net interface since SO_BINDTODEVICE is not supported on your os.\n", prog);
-            exit(3);
-            ;
-#endif
-            break;
-
-        case 'T':
-            /* This option is ignored for compatibility reasons ("select timeout" is not meaningful anymore) */
-            break;
-
-        case 'O':
-            if (sscanf(optparse_state.optarg, "%i", &tos)) {
-                if (socket4 >= 0) {
-                    if (setsockopt(socket4, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) {
-                        perror("setting type of service octet IP_TOS");
-                    }
-                }
-#if defined(IPV6) && defined(IPV6_TCLASS)
-                if (socket6 >= 0) {
-                    if (setsockopt(socket6, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos))) {
-                        perror("setting type of service octet IPV6_TCLASS");
-                    }
-                }
-#endif
-            }
-            else {
-                usage(1);
-            }
-            break;
-
-        case 'o':
-            outage_flag = 1;
-            break;
-
-        case '?':
-            fprintf(stderr, "%s: %s\n", argv[0], optparse_state.errmsg);
-            fprintf(stderr, "see 'fping -h' for usage information\n");
-            exit(1);
-            break;
-        }
-    }
 
     /* validate various option settings */
 
@@ -718,49 +382,33 @@ int ping(const char* url)
     }
 
     if (ttl > 255) {
-        fprintf(stderr, "%s: ttl %u out of range\n", prog, ttl);
-        exit(1);
+        fprintf(stderr, "ttl %u out of range\n", ttl);
+        return -1;
     }
 
     if (unreachable_flag && alive_flag) {
-        fprintf(stderr, "%s: specify only one of a, u\n", prog);
-        exit(1);
+        fprintf(stderr, "specify only one of a, u\n");
+        return -1;
     }
 
     if (count_flag && loop_flag) {
-        fprintf(stderr, "%s: specify only one of c, l\n", prog);
-        exit(1);
+        fprintf(stderr, "specify only one of c, l\n");
+        return -1;
     }
 
 
     if (ping_data_size > MAX_PING_DATA) {
-        fprintf(stderr, "%s: data size %u not valid, must be lower than %u\n",
-            prog, ping_data_size, (unsigned int)MAX_PING_DATA);
-        exit(1);
+        fprintf(stderr, "data size %u not valid, must be lower than %u\n",
+            ping_data_size, (unsigned int)MAX_PING_DATA);
+        return -1;
     }
 
     if ((backoff > MAX_BACKOFF_FACTOR) || (backoff < MIN_BACKOFF_FACTOR)) {
         fprintf(stderr, "backoff factor %.1f not valid, must be between %.1f and %.1f\n",
             backoff, MIN_BACKOFF_FACTOR, MAX_BACKOFF_FACTOR);
-        exit(1);
+        return -1;
     }
 
-    if (alive_flag || unreachable_flag || min_reachable)
-        verbose_flag = 0;
-
-    if (count_flag) {
-        if (verbose_flag)
-            per_recv_flag = 1;
-
-        alive_flag = unreachable_flag = verbose_flag = 0;
-    }
-
-    if (loop_flag) {
-        if (!report_interval)
-            per_recv_flag = 1;
-
-        alive_flag = unreachable_flag = verbose_flag = 0;
-    }
 
     trials = (count > retry + 1) ? count : retry + 1;
 
@@ -884,8 +532,6 @@ int ping(const char* url)
     /* handle host names supplied on command line or in a file */
     /* if the generate_flag is on, then generate the IP list */
 
-    argv = &argv[optparse_state.optind];
-    argc -= optparse_state.optind;
 
     /* cover allowable conditions */
 
@@ -1292,7 +938,7 @@ void main_loop()
 
   Description:
 
-  Main program clean up and exit point
+  Main ram clean up and exit point
 
 ************************************************************/
 
