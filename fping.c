@@ -317,7 +317,6 @@ char* sprint_tm(int t);
 void ev_enqueue(HOST_ENTRY* h);
 HOST_ENTRY* ev_dequeue();
 void ev_remove(HOST_ENTRY* h);
-void add_cidr(char*);
 void add_range(char*, char*);
 void print_warning(char* fmt, ...);
 int addr_cmp(struct sockaddr* a, struct sockaddr* b);
@@ -539,73 +538,7 @@ int ping(const char* url)
     return 0;
 }
 
-void add_cidr(char* addr)
-{
-    char* addr_end;
-    char* mask_str;
-    unsigned long mask;
-    unsigned long bitmask;
-    int ret;
-    struct addrinfo addr_hints;
-    struct addrinfo* addr_res;
-    unsigned long net_addr;
-    unsigned long net_last;
 
-    /* Split address from mask */
-    addr_end = strchr(addr, '/');
-    if (addr_end == NULL) {
-        printf("hello world");
-    	usage(1);
-    }
-    *addr_end = '\0';
-    mask_str = addr_end + 1;
-    mask = atoi(mask_str);
-
-    /* parse address (IPv4 only) */
-    memset(&addr_hints, 0, sizeof(struct addrinfo));
-    addr_hints.ai_family = AF_UNSPEC;
-    addr_hints.ai_flags = AI_NUMERICHOST;
-    ret = getaddrinfo(addr, NULL, &addr_hints, &addr_res);
-    if (ret) {
-        printf("can't parse address %s: %s\n", addr, gai_strerror(ret));
-        exit(1);
-    }
-    if (addr_res->ai_family != AF_INET) {
-        printf("-g works only with IPv4 addresses\n");
-        exit(1);
-    }
-    net_addr = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
-
-    /* check mask */
-    if (mask < 1 || mask > 32) {
-        printf("netmask must be between 1 and 32 (is: %s)\n", mask_str);
-        exit(1);
-    }
-
-    /* convert mask integer from 1 to 32 to a bitmask */
-    bitmask = ((unsigned long)0xFFFFFFFF) << (32 - mask);
-
-    /* calculate network range */
-    net_addr &= bitmask;
-    net_last = net_addr + ((unsigned long)0x1 << (32 - mask)) - 1;
-
-    /* exclude network and broadcast address for regular prefixes */
-    if (mask < 31) {
-        net_last--;
-        net_addr++;
-    }
-
-    /* add all hosts in that network (net_addr and net_last inclusive) */
-    for (; net_addr <= net_last; net_addr++) {
-        struct in_addr in_addr_tmp;
-        char buffer[20];
-        in_addr_tmp.s_addr = htonl(net_addr);
-        inet_ntop(AF_INET, &in_addr_tmp, buffer, sizeof(buffer));
-        add_name(buffer);
-    }
-
-    freeaddrinfo(addr_res);
-}
 
 void add_range(char* start, char* end)
 {
