@@ -229,7 +229,6 @@ HOST_ENTRY** table = NULL; /* array of pointers to items in the list */
 HOST_ENTRY* ev_first;
 HOST_ENTRY* ev_last;
 
-char* prog;
 int ident; /* our pid */
 int socket4 = -1;
 #ifndef USE_IPV6
@@ -362,12 +361,6 @@ int ping(const char* url)
     HOST_ENTRY* cursor;
     struct optparse optparse_state;
 
-    /* pre-parse -h/--help, so that we also can output help information
-     * without trying to open the socket, which might fail */
-    prog = argv[0];
-    if(argc == 2 && ( strcmp(argv[1],"-h")==0 || strcmp(argv[1],"--help")==0 )) {
-        usage(0);
-    }
 
     socket4 = open_ping_socket_ipv4(ping_data_size);
 #ifdef IPV6
