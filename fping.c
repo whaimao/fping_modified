@@ -458,7 +458,7 @@ int ping(const char* url)
 #endif
 
     num_hosts = 0;
-    if(!add_name(url)){
+    if(0 != add_name(url)){
     	return -1;//无法解决host
     }
 
@@ -828,13 +828,8 @@ void finish()
         if (!h->num_recv) {
             num_unreachable++;
 
-            if (verbose_flag || unreachable_flag) {
-                printf("%s", h->host);
-
-                if (verbose_flag)
-                    printf(" is unreachable");
-
-                printf("\n");
+            if (unreachable_flag) {
+                printf("%s  is unreachable\n", h->host);
             }
         }
     }
@@ -888,7 +883,7 @@ void print_per_system_stats(void)
 
     fflush(stdout);
 
-    if (verbose_flag || per_recv_flag)
+    if (per_recv_flag)
         fprintf(stderr, "\n");
 
     for (i = 0; i < num_hosts; i++) {
@@ -1052,7 +1047,7 @@ void print_per_system_splits(void)
 
     fflush(stdout);
 
-    if (verbose_flag || per_recv_flag)
+    if (per_recv_flag)
         fprintf(stderr, "\n");
 
     gettimeofday(&current_time, &tz);
@@ -1194,9 +1189,7 @@ int send_ping(HOST_ENTRY* h)
         && errno != EHOSTDOWN
 #endif
         ) {
-        if (verbose_flag) {
-            print_warning("%s: error while sending ping: %s\n", h->host, strerror(errno));
-        }
+        print_warning("%s: error while sending ping: %s\n", h->host, strerror(errno));
 
         if (!loop_flag)
             h->resp_times[h->num_sent] = RESP_ERROR;
@@ -1349,11 +1342,11 @@ int decode_icmp_ipv4(
 
     if (reply_buf_len < hlen + ICMP_MINLEN) {
         /* too short */
-        if (verbose_flag) {
+        /*if (verbose_flag) {
             char buf[INET6_ADDRSTRLEN];
             getnameinfo((struct sockaddr*)&response_addr, sizeof(response_addr), buf, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
             printf("received packet too short for ICMP (%d bytes from %s)\n", (int)reply_buf_len, buf);
-        }
+        }*/
         return 0;
     }
 
@@ -1693,11 +1686,8 @@ int wait_for_reply(long wait_time)
 
     if (h->num_recv == 1) {
         num_alive++;
-        if (verbose_flag || alive_flag) {
-            printf("%s", h->host);
-
-            if (verbose_flag)
-                printf(" is alive");
+        if (alive_flag) {
+            printf("%s is alive", h->host);
 
             if (elapsed_flag)
                 printf(" (%s ms)", sprint_tm(this_reply));
@@ -1834,8 +1824,8 @@ int add_addr(const char* name, const char* host, struct sockaddr* ipaddr, sockle
     memset((char*)p, 0, sizeof(HOST_ENTRY));
 
     //TODO strdup
-    snprintf(p->name, 50, name);
-    snprintf(p->host, 50, host);
+    snprintf(p->name, 50, "%s",  name);
+    snprintf(p->host, 50, "%s", host);
     memcpy(&p->saddr, ipaddr, ipaddr_len);
     p->saddr_len = ipaddr_len;
     p->timeout = timeout;
