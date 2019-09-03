@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 
 /* fping.c */
-void crash_and_burn( char *message );
+int crash_and_burn(const  char *message );
 void errno_crash_and_burn( char *message );
 int in_cksum( unsigned short *p, int n );
 int random_data_flag;

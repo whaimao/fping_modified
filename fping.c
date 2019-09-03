@@ -297,9 +297,8 @@ char* filename = NULL; /* file containing hosts to ping */
 /*** forward declarations ***/
 
 int add_name(const char* name);
-void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
+int add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
 char* na_cat(char* name, struct in_addr ipaddr);
-void crash_and_burn(char* message);
 void errno_crash_and_burn(char* message);
 char* get_host_by_address(struct in_addr in);
 void remove_job(HOST_ENTRY* h);
@@ -378,7 +377,7 @@ int ping(const char* url)
 #else
     if ((socket4 < 0 && socket6 < 0) || (hints_ai_family == AF_INET6 && socket6 < 0)) {
 #endif
-        crash_and_burn("can't create socket (must run as root?)");
+        return crash_and_burn("can't create socket (must run as root?)");
     }
 
     if (ttl > 255) {
@@ -477,8 +476,9 @@ int ping(const char* url)
     /* allocate array to hold outstanding ping requests */
 
     table = (HOST_ENTRY**)malloc(sizeof(HOST_ENTRY*) * num_hosts);
-    if (!table)
-        crash_and_burn("Can't malloc array of hosts");
+    if (!table){
+    	return crash_and_burn("Can't malloc array of hosts");
+    }
 
     cursor = ev_first;
 
@@ -490,8 +490,12 @@ int ping(const char* url)
         if (count_flag || loop_flag) {
             n = max_hostname_len - strlen(cursor->host);
             buf = (char*)malloc(n + 1);
-            if (!buf)
-                crash_and_burn("can't malloc host pad");
+            if (!buf){
+                if(table){
+                	free(table);
+                }
+            	return crash_and_burn("can't malloc host pad");
+            }
 
             for (i = 0; i < n; i++)
                 buf[i] = ' ';
@@ -508,7 +512,6 @@ int ping(const char* url)
     init_ping_buffer_ipv6(ping_data_size);
 #endif
 
-    signal(SIGINT, finish);
 
     gettimeofday(&start_time, &tz);
     current_time = start_time;
@@ -1765,8 +1768,8 @@ int wait_for_reply(long wait_time)
 
 int add_name(const char* name)
 {
-    struct addrinfo *res0, *res, hints;
-    int ret_ga;
+    struct addrinfo *res, hints;
+    int ret_ga = 0;
     //TODO delet printname
     char namebuf[256];
     char addrbuf[256];
@@ -1788,7 +1791,7 @@ int add_name(const char* name)
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_protocol = 0;
     }
-    ret_ga = getaddrinfo(name, NULL, &hints, &res0);
+    ret_ga = getaddrinfo(name, NULL, &hints, &res);
     if (ret_ga) {
         if (!quiet_flag)
             print_warning("%s: %s\n", name, gai_strerror(ret_ga));
@@ -1796,71 +1799,13 @@ int add_name(const char* name)
         return -1;
     }
 
-    /* NOTE: we could/should loop with res on all addresses like this:
-     * for (res = res0; res; res = res->ai_next) {
-     * We don't do it yet, however, because is is an incompatible change
-     * (need to implement a separate option for this)
-     */
-   /* for (res = res0; res; res = res->ai_next) {
-         name_flag: addr -> name lookup requested)
-        if (name_flag || rdns_flag) {
-            int do_rdns = rdns_flag ? 1 : 0;
-            if (name_flag) {
-                 Was it a numerical address? Only then do a rdns-query
-                struct addrinfo* nres;
-                hints.ai_flags = AI_NUMERICHOST;
-                if (getaddrinfo(name, NULL, &hints, &nres) == 0) {
-                    do_rdns = 1;
-                    freeaddrinfo(nres);
-                }
-            }
-            // https://blog.csdn.net/jctian000/article/details/81912346 , 直接使用name就可以
-            if (do_rdns && getnameinfo(res->ai_addr, res->ai_addrlen, namebuf, sizeof(namebuf) / sizeof(char), NULL, 0, 0) == 0) {
-                printname = namebuf;
-            }
-            else {
-                printname = name;
-            }
-        }
-        else {
-            printname = name;
-        }
 
-         addr_flag: name -> addr lookup requested
-        if (addr_flag) {
-            int ret;
-            ret = getnameinfo(res->ai_addr, res->ai_addrlen, addrbuf,
-                sizeof(addrbuf) / sizeof(char), NULL, 0, NI_NUMERICHOST);
-            if (ret) {
-                if (!quiet_flag) {
-                    print_warning("%s: can't forward-lookup address (%s)\n", name, gai_strerror(ret));
-                }
-                continue;
-            }
-
-            if (name_flag || rdns_flag) {
-                char nameaddrbuf[512];
-                snprintf(nameaddrbuf, sizeof(nameaddrbuf) / sizeof(char), "%s (%s)", printname, addrbuf);
-                add_addr(name, name, res->ai_addr, res->ai_addrlen);
-            }
-            else {
-                add_addr(name, addrbuf, res->ai_addr, res->ai_addrlen);
-            }
-        }
-        else {
-            add_addr(name, printname, res->ai_addr, res->ai_addrlen);
-        }
-
-        if (!multif_flag) {
-            break;
-        }
-    }*/
     //没有必要解析所有的ip
-    add_addr(name, name, res->ai_addr, res->ai_addrlen);
+    ret_ga = add_addr(name, name, res->ai_addr, res->ai_addrlen);
 
-    freeaddrinfo(res0);
+    freeaddrinfo(res);
 
-    return 0;
+    return ret_ga;
 }
 
 /************************************************************
@@ -1876,14 +1821,15 @@ int add_name(const char* name)
 
 ************************************************************/
 
-void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
+int add_addr(const char* name, const char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
 {
     HOST_ENTRY* p;
     int n, *i;
 
     p = (HOST_ENTRY*)malloc(sizeof(HOST_ENTRY));
-    if (!p)
-        crash_and_burn("can't allocate HOST_ENTRY");
+    if (!p){
+        return crash_and_burn("can't allocate HOST_ENTRY");
+    }
 
     memset((char*)p, 0, sizeof(HOST_ENTRY));
 
@@ -1911,8 +1857,12 @@ void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, sockl
     /* array for response time results */
     if (!loop_flag) {
         i = (int*)malloc(trials * sizeof(int));
-        if (!i)
-            crash_and_burn("can't allocate resp_times array");
+        if (!i){
+        	if(p){
+        		free(p);
+        	}
+        	return crash_and_burn("can't allocate resp_times array");
+        }
 
         for (n = 1; n < trials; n++)
             i[n] = RESP_UNUSED;
@@ -1920,19 +1870,7 @@ void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, sockl
         p->resp_times = i;
     }
 
-#if defined(DEBUG) || defined(_DEBUG)
-    /* likewise for sent times */
-    if (sent_times_flag) {
-        i = (int*)malloc(trials * sizeof(int));
-        if (!i)
-            crash_and_burn("can't allocate sent_times array");
 
-        for (n = 1; n < trials; n++)
-            i[n] = RESP_UNUSED;
-
-        p->sent_times = i;
-    }
-#endif /* DEBUG || _DEBUG */
 
     /* schedule first ping */
     p->ev_type = EV_TYPE_PING;
@@ -1941,6 +1879,8 @@ void add_addr(const char* name, const char* host, struct sockaddr* ipaddr, sockl
     ev_enqueue(p);
 
     num_hosts++;
+
+    return 0;
 }
 
 /************************************************************
@@ -1981,12 +1921,11 @@ void remove_job(HOST_ENTRY* h)
 
 ************************************************************/
 
-void crash_and_burn(char* message)
+int crash_and_burn(const char* message)
 {
-    if (verbose_flag)
-        fprintf(stderr, "%s\n", message);
+    fprintf(stderr, "%s\n", message);
 
-    exit(4);
+    return -1;
 }
 
 /************************************************************
