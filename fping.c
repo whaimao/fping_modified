@@ -356,7 +356,6 @@ int ping(const char* url)
 {
     int c, i, n;
     char* buf;
-    uid_t uid;
     int tos = 0;
     HOST_ENTRY* cursor;
     struct optparse optparse_state;
@@ -372,11 +371,6 @@ int ping(const char* url)
     }
 #endif
 
-    if ((uid = getuid())) {
-        /* drop privileges */
-        if (setuid(getuid()) == -1)
-            perror("cannot setuid");
-    }
 
     optparse_init(&optparse_state, argv);
     ident = getpid() & 0xFFFF;
@@ -738,15 +732,6 @@ int ping(const char* url)
         exit(1);
     }
 
-#ifdef FPING_SAFE_LIMITS
-    if ((interval < MIN_INTERVAL * 100 || perhost_interval < MIN_PERHOST_INTERVAL * 100)
-        && getuid()) {
-        fprintf(stderr, "%s: these options are too risky for mere mortals.\n", prog);
-        fprintf(stderr, "%s: You need -i >= %u and -p >= %u\n",
-            prog, MIN_INTERVAL, MIN_PERHOST_INTERVAL);
-        exit(1);
-    }
-#endif
 
     if (ping_data_size > MAX_PING_DATA) {
         fprintf(stderr, "%s: data size %u not valid, must be lower than %u\n",
@@ -755,8 +740,8 @@ int ping(const char* url)
     }
 
     if ((backoff > MAX_BACKOFF_FACTOR) || (backoff < MIN_BACKOFF_FACTOR)) {
-        fprintf(stderr, "%s: backoff factor %.1f not valid, must be between %.1f and %.1f\n",
-            prog, backoff, MIN_BACKOFF_FACTOR, MAX_BACKOFF_FACTOR);
+        fprintf(stderr, "backoff factor %.1f not valid, must be between %.1f and %.1f\n",
+            backoff, MIN_BACKOFF_FACTOR, MAX_BACKOFF_FACTOR);
         exit(1);
     }
 
@@ -814,8 +799,8 @@ int ping(const char* url)
         report_all_rtts_flag = 1;
 
     if (trace_flag) {
-        fprintf(stderr, "%s:\n  count: %u, retry: %u, interval: %u\n",
-            prog, count, retry, interval / 10);
+        fprintf(stderr, "count: %u, retry: %u, interval: %u\n",
+            count, retry, interval / 10);
         fprintf(stderr, "  perhost_interval: %u, timeout: %u\n",
             perhost_interval / 10, timeout / 10);
         fprintf(stderr, "  ping_data_size = %u, trials = %u\n",
@@ -1062,18 +1047,18 @@ void add_cidr(char* addr)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(addr, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "%s, can't parse address %s: %s\n", prog, addr, gai_strerror(ret));
+        fprintf(stderr, "can't parse address %s: %s\n", addr, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
-        fprintf(stderr, "%s: -g works only with IPv4 addresses\n", prog);
+        fprintf(stderr, "-g works only with IPv4 addresses\n");
         exit(1);
     }
     net_addr = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
 
     /* check mask */
     if (mask < 1 || mask > 32) {
-        fprintf(stderr, "%s: netmask must be between 1 and 32 (is: %s)\n", prog, mask_str);
+        fprintf(stderr, "netmask must be between 1 and 32 (is: %s)\n", mask_str);
         exit(1);
     }
 
@@ -1116,12 +1101,12 @@ void add_range(char* start, char* end)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(start, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "%s: can't parse address %s: %s\n", prog, start, gai_strerror(ret));
+        fprintf(stderr, "can't parse address %s: %s\n", start, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
         freeaddrinfo(addr_res);
-        fprintf(stderr, "%s: -g works only with IPv4 addresses\n", prog);
+        fprintf(stderr, "-g works only with IPv4 addresses\n");
         exit(1);
     }
     start_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
@@ -1132,19 +1117,19 @@ void add_range(char* start, char* end)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(end, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "%s: can't parse address %s: %s\n", prog, end, gai_strerror(ret));
+        fprintf(stderr, "can't parse address %s: %s\n", end, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
         freeaddrinfo(addr_res);
-        fprintf(stderr, "%s: -g works only with IPv4 addresses\n", prog);
+        fprintf(stderr, "-g works only with IPv4 addresses\n");
         exit(1);
     }
     end_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
     freeaddrinfo(addr_res);
 
     if (end_long > start_long + MAX_GENERATE) {
-        fprintf(stderr, "%s: -g parameter generates too many addresses\n", prog);
+        fprintf(stderr, "-g parameter generates too many addresses\n");
         exit(1);
     }
 
@@ -2479,7 +2464,7 @@ void remove_job(HOST_ENTRY* h)
 void crash_and_burn(char* message)
 {
     if (verbose_flag)
-        fprintf(stderr, "%s: %s\n", prog, message);
+        fprintf(stderr, "%s\n", message);
 
     exit(4);
 }
@@ -2498,7 +2483,7 @@ void crash_and_burn(char* message)
 
 void errno_crash_and_burn(char* message)
 {
-    fprintf(stderr, "%s: %s : %s\n", prog, message, strerror(errno));
+    fprintf(stderr, "%s : %s\n", message, strerror(errno));
     exit(4);
 }
 
