@@ -81,8 +81,6 @@ extern "C" {
 
 /*** externals ***/
 
-extern char* optarg;
-extern int optind, opterr;
 #ifndef h_errno
 extern int h_errno;
 #endif
@@ -298,8 +296,8 @@ char* filename = NULL; /* file containing hosts to ping */
 
 /*** forward declarations ***/
 
-void add_name(char* name);
-void add_addr(char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
+void add_name(const char* name);
+void add_addr(const char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len);
 char* na_cat(char* name, struct in_addr ipaddr);
 void crash_and_burn(char* message);
 void errno_crash_and_burn(char* message);
@@ -340,6 +338,8 @@ int addr_cmp(struct sockaddr* a, struct sockaddr* b);
   Main program entry point
 
 ************************************************************/
+
+int ping(const char* url);
 
 int main(){
 	int ret = ping("www.baidu.com");
@@ -458,72 +458,10 @@ int ping(const char* url)
     }
 #endif
 
-    /* handle host names supplied on command line or in a file */
-    /* if the generate_flag is on, then generate the IP list */
 
+    add_name(url);
 
-    /* cover allowable conditions */
-
-    /* file and generate are mutually exclusive */
-    /* file and command line are mutually exclusive */
-    /* generate requires command line parameters beyond the switches */
-    if ((*argv && filename) || (filename && generate_flag) || (generate_flag && !*argv))
-        usage(1);
-
-    /* if no conditions are specified, then assume input from stdin */
-    if (!*argv && !filename && !generate_flag)
-        filename = "-";
-
-    if (*argv && !generate_flag) {
-        while (*argv) {
-            add_name(*argv);
-            ++argv;
-        }
-    }
-    else if (filename) {
-        FILE* ping_file;
-        char line[132];
-        char host[132];
-
-        if (strcmp(filename, "-") == 0)
-            ping_file = fdopen(0, "r");
-        else
-            ping_file = fopen(filename, "r");
-
-        if (!ping_file)
-            errno_crash_and_burn("fopen");
-
-        while (fgets(line, sizeof(line), ping_file)) {
-            if (sscanf(line, "%s", host) != 1)
-                continue;
-
-            if ((!*host) || (host[0] == '#')) /* magic to avoid comments */
-                continue;
-
-            add_name(host);
-        }
-
-        fclose(ping_file);
-    }
-    else if (*argv && generate_flag) {
-        if (argc == 1) {
-            /* one target: we expect a cidr range (n.n.n.n/m) */
-            add_cidr(argv[0]);
-        }
-        else if (argc == 2) {
-            add_range(argv[0], argv[1]);
-        }
-        else {
-            usage(1);
-        }
-    }
-    else {
-        usage(1);
-    }
-
-    if (!num_hosts) {
-        exit(num_noaddress ? 2 : 1);
-    }
+    num_hosts = 1;
 
     if (src_addr_set && socket4 >= 0) {
         socket_set_src_addr_ipv4(socket4, &src_addr);
@@ -1823,11 +1761,12 @@ int wait_for_reply(long wait_time)
 
 ************************************************************/
 
-void add_name(char* name)
+void add_name(const char* name)
 {
     struct addrinfo *res0, *res, hints;
     int ret_ga;
-    char* printname;
+    //TODO delet printname
+    char *printname;
     char namebuf[256];
     char addrbuf[256];
 
@@ -1932,7 +1871,7 @@ void add_name(char* name)
 
 ************************************************************/
 
-void add_addr(char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
+void add_addr(const char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_len)
 {
     HOST_ENTRY* p;
     int n, *i;
@@ -1943,6 +1882,7 @@ void add_addr(char* name, char* host, struct sockaddr* ipaddr, socklen_t ipaddr_
 
     memset((char*)p, 0, sizeof(HOST_ENTRY));
 
+    //TODO strdup
     p->name = strdup(name);
     p->host = strdup(host);
     memcpy(&p->saddr, ipaddr, ipaddr_len);
