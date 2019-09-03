@@ -381,35 +381,36 @@ int ping(const char* url)
     }
 
     if (ttl > 255) {
-        fprintf(stderr, "ttl %u out of range\n", ttl);
+        printf("ttl %u out of range\n", ttl);
         return -1;
     }
 
     if (unreachable_flag && alive_flag) {
-        fprintf(stderr, "specify only one of a, u\n");
+        printf("specify only one of a, u\n");
         return -1;
     }
 
     if (count_flag && loop_flag) {
-        fprintf(stderr, "specify only one of c, l\n");
+        printf("specify only one of c, l\n");
         return -1;
     }
 
 
     if (ping_data_size > MAX_PING_DATA) {
-        fprintf(stderr, "data size %u not valid, must be lower than %u\n",
+        printf("data size %u not valid, must be lower than %u\n",
             ping_data_size, (unsigned int)MAX_PING_DATA);
         return -1;
     }
 
     if ((backoff > MAX_BACKOFF_FACTOR) || (backoff < MIN_BACKOFF_FACTOR)) {
-        fprintf(stderr, "backoff factor %.1f not valid, must be between %.1f and %.1f\n",
+        printf("backoff factor %.1f not valid, must be between %.1f and %.1f\n",
             backoff, MIN_BACKOFF_FACTOR, MAX_BACKOFF_FACTOR);
         return -1;
     }
 
 
-    trials = (count > retry + 1) ? count : retry + 1;
+    //trials = (count > retry + 1) ? count : retry + 1;
+    trials = 1;
 
     /* auto-tune default timeout for count/loop modes
      * see also github #32 */
@@ -553,7 +554,8 @@ void add_cidr(char* addr)
     /* Split address from mask */
     addr_end = strchr(addr, '/');
     if (addr_end == NULL) {
-        usage(1);
+        printf("hello world");
+    	usage(1);
     }
     *addr_end = '\0';
     mask_str = addr_end + 1;
@@ -565,18 +567,18 @@ void add_cidr(char* addr)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(addr, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "can't parse address %s: %s\n", addr, gai_strerror(ret));
+        printf("can't parse address %s: %s\n", addr, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
-        fprintf(stderr, "-g works only with IPv4 addresses\n");
+        printf("-g works only with IPv4 addresses\n");
         exit(1);
     }
     net_addr = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
 
     /* check mask */
     if (mask < 1 || mask > 32) {
-        fprintf(stderr, "netmask must be between 1 and 32 (is: %s)\n", mask_str);
+        printf("netmask must be between 1 and 32 (is: %s)\n", mask_str);
         exit(1);
     }
 
@@ -619,12 +621,12 @@ void add_range(char* start, char* end)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(start, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "can't parse address %s: %s\n", start, gai_strerror(ret));
+        printf("can't parse address %s: %s\n", start, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
         freeaddrinfo(addr_res);
-        fprintf(stderr, "-g works only with IPv4 addresses\n");
+        printf("-g works only with IPv4 addresses\n");
         exit(1);
     }
     start_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
@@ -635,19 +637,19 @@ void add_range(char* start, char* end)
     addr_hints.ai_flags = AI_NUMERICHOST;
     ret = getaddrinfo(end, NULL, &addr_hints, &addr_res);
     if (ret) {
-        fprintf(stderr, "can't parse address %s: %s\n", end, gai_strerror(ret));
+        printf("can't parse address %s: %s\n", end, gai_strerror(ret));
         exit(1);
     }
     if (addr_res->ai_family != AF_INET) {
         freeaddrinfo(addr_res);
-        fprintf(stderr, "-g works only with IPv4 addresses\n");
+        printf("-g works only with IPv4 addresses\n");
         exit(1);
     }
     end_long = ntohl(((struct sockaddr_in*)addr_res->ai_addr)->sin_addr.s_addr);
     freeaddrinfo(addr_res);
 
     if (end_long > start_long + MAX_GENERATE) {
-        fprintf(stderr, "-g parameter generates too many addresses\n");
+        printf("-g parameter generates too many addresses\n");
         exit(1);
     }
 
@@ -759,7 +761,7 @@ void main_loop()
 
 #if defined(DEBUG) || defined(_DEBUG)
             if (trace_flag) {
-                fprintf(stderr, "next event in %d ms (%s)\n", wait_time / 100, ev_first->host);
+                printf("next event in %d ms (%s)\n", wait_time / 100, ev_first->host);
             }
 #endif
         }
@@ -854,12 +856,17 @@ void finish()
         }
     }
 
-    if (num_noaddress)
-        exit(2);
-    else if (num_alive != num_hosts)
-        exit(1);
+    if (num_noaddress){
+    	printf("line=%d", __LINE__);
+    	exit(2);
+    }
+    else if (num_alive != num_hosts){
+    	printf("line=%d", __LINE__);
+    	exit(1);
+    }
 
-    exit(0);
+	printf("line=%d", __LINE__);
+    //exit(0);
 }
 
 /************************************************************
@@ -884,58 +891,58 @@ void print_per_system_stats(void)
     fflush(stdout);
 
     if (per_recv_flag)
-        fprintf(stderr, "\n");
+        printf("\n");
 
     for (i = 0; i < num_hosts; i++) {
         h = table[i];
-        fprintf(stderr, "%s%s :", h->host, h->pad);
+        printf("%s%s :", h->host, h->pad);
 
         if (report_all_rtts_flag) {
             for (j = 0; j < h->num_sent; j++) {
                 if ((resp = h->resp_times[j]) >= 0)
-                    fprintf(stderr, " %d.%02d", resp / 100, resp % 100);
+                    printf(" %d.%02d", resp / 100, resp % 100);
                 else
-                    fprintf(stderr, " -");
+                    printf(" -");
             }
 
-            fprintf(stderr, "\n");
+            printf("\n");
         }
         else {
             if (h->num_recv <= h->num_sent) {
-                fprintf(stderr, " xmt/rcv/%%loss = %d/%d/%d%%",
+                printf(" xmt/rcv/%%loss = %d/%d/%d%%",
                     h->num_sent, h->num_recv, h->num_sent > 0 ? ((h->num_sent - h->num_recv) * 100) / h->num_sent : 0);
 
                 if (outage_flag) {
                     /* Time outage total */
                     outage_ms = (h->num_sent - h->num_recv) * perhost_interval / 100;
-                    fprintf(stderr, ", outage(ms) = %d", outage_ms);
+                    printf(", outage(ms) = %d", outage_ms);
                 }
             }
             else {
-                fprintf(stderr, " xmt/rcv/%%return = %d/%d/%d%%",
+                printf(" xmt/rcv/%%return = %d/%d/%d%%",
                     h->num_sent, h->num_recv,
                     ((h->num_recv * 100) / h->num_sent));
             }
 
             if (h->num_recv) {
                 avg = h->total_time / h->num_recv;
-                fprintf(stderr, ", min/avg/max = %s", sprint_tm(h->min_reply));
-                fprintf(stderr, "/%s", sprint_tm(avg));
-                fprintf(stderr, "/%s", sprint_tm(h->max_reply));
+                printf(", min/avg/max = %s", sprint_tm(h->min_reply));
+                printf("/%s", sprint_tm(avg));
+                printf("/%s", sprint_tm(h->max_reply));
             }
 
-            fprintf(stderr, "\n");
+            printf("\n");
         }
 
 #if defined(DEBUG) || defined(_DEBUG)
         if (sent_times_flag) {
             for (j = 0; j < h->num_sent; j++) {
                 if ((resp = h->sent_times[j]) >= 0)
-                    fprintf(stderr, " %s", sprint_tm(resp));
+                    printf(" %s", sprint_tm(resp));
                 else
-                    fprintf(stderr, " -");
+                    printf(" -");
 
-                fprintf(stderr, "\n");
+                printf("\n");
             }
         }
 #endif
@@ -1048,16 +1055,16 @@ void print_per_system_splits(void)
     fflush(stdout);
 
     if (per_recv_flag)
-        fprintf(stderr, "\n");
+        printf("\n");
 
     gettimeofday(&current_time, &tz);
     curr_tm = localtime((time_t*)&current_time.tv_sec);
-    fprintf(stderr, "[%2.2d:%2.2d:%2.2d]\n", curr_tm->tm_hour,
+    printf("[%2.2d:%2.2d:%2.2d]\n", curr_tm->tm_hour,
         curr_tm->tm_min, curr_tm->tm_sec);
 
     for (i = 0; i < num_hosts; i++) {
         h = table[i];
-        fprintf(stderr, "%s%s :", h->host, h->pad);
+        printf("%s%s :", h->host, h->pad);
 
         /* if we just sent the probe and didn't receive a reply, we shouldn't count it */
         h->discard_next_recv_i = 0;
@@ -1069,28 +1076,28 @@ void print_per_system_splits(void)
         }
 
         if (h->num_recv_i <= h->num_sent_i) {
-            fprintf(stderr, " xmt/rcv/%%loss = %d/%d/%d%%",
+            printf(" xmt/rcv/%%loss = %d/%d/%d%%",
                 h->num_sent_i, h->num_recv_i, h->num_sent_i > 0 ? ((h->num_sent_i - h->num_recv_i) * 100) / h->num_sent_i : 0);
 
             if (outage_flag) {
                 /* Time outage  */
                 outage_ms_i = (h->num_sent_i - h->num_recv_i) * perhost_interval / 100;
-                fprintf(stderr, ", outage(ms) = %d", outage_ms_i);
+                printf(", outage(ms) = %d", outage_ms_i);
             }
         }
         else {
-            fprintf(stderr, " xmt/rcv/%%return = %d/%d/%d%%",
+            printf(" xmt/rcv/%%return = %d/%d/%d%%",
                 h->num_sent_i, h->num_recv_i, h->num_sent_i > 0 ? ((h->num_recv_i * 100) / h->num_sent_i) : 0);
         }
 
         if (h->num_recv_i) {
             avg = h->total_time_i / h->num_recv_i;
-            fprintf(stderr, ", min/avg/max = %s", sprint_tm(h->min_reply_i));
-            fprintf(stderr, "/%s", sprint_tm(avg));
-            fprintf(stderr, "/%s", sprint_tm(h->max_reply_i));
+            printf(", min/avg/max = %s", sprint_tm(h->min_reply_i));
+            printf("/%s", sprint_tm(avg));
+            printf("/%s", sprint_tm(h->max_reply_i));
         }
 
-        fprintf(stderr, "\n");
+        printf("\n");
         h->num_sent_i = h->num_recv_i = h->max_reply_i = h->min_reply_i = h->total_time_i = 0;
     }
 }
@@ -1111,17 +1118,17 @@ void print_per_system_splits(void)
 void print_global_stats(void)
 {
     fflush(stdout);
-    fprintf(stderr, "\n");
-    fprintf(stderr, " %7d targets\n", num_hosts);
-    fprintf(stderr, " %7d alive\n", num_alive);
-    fprintf(stderr, " %7d unreachable\n", num_unreachable);
-    fprintf(stderr, " %7d unknown addresses\n", num_noaddress);
-    fprintf(stderr, "\n");
-    fprintf(stderr, " %7d timeouts (waiting for response)\n", num_timeout);
-    fprintf(stderr, " %7d ICMP Echos sent\n", num_pingsent);
-    fprintf(stderr, " %7d ICMP Echo Replies received\n", num_pingreceived);
-    fprintf(stderr, " %7d other ICMP received\n", num_othericmprcvd);
-    fprintf(stderr, "\n");
+    printf("\n");
+    printf(" %7d targets\n", num_hosts);
+    printf(" %7d alive\n", num_alive);
+    printf(" %7d unreachable\n", num_unreachable);
+    printf(" %7d unknown addresses\n", num_noaddress);
+    printf("\n");
+    printf(" %7d timeouts (waiting for response)\n", num_timeout);
+    printf(" %7d ICMP Echos sent\n", num_pingsent);
+    printf(" %7d ICMP Echo Replies received\n", num_pingreceived);
+    printf(" %7d other ICMP received\n", num_othericmprcvd);
+    printf("\n");
 
     if (total_replies == 0) {
         min_reply = 0;
@@ -1130,13 +1137,13 @@ void print_global_stats(void)
         sum_replies = 0;
     }
 
-    fprintf(stderr, " %s ms (min round trip time)\n", sprint_tm(min_reply));
-    fprintf(stderr, " %s ms (avg round trip time)\n",
+    printf(" %s ms (min round trip time)\n", sprint_tm(min_reply));
+    printf(" %s ms (avg round trip time)\n",
         sprint_tm((int)(sum_replies / total_replies)));
-    fprintf(stderr, " %s ms (max round trip time)\n", sprint_tm(max_reply));
-    fprintf(stderr, " %12.3f sec (elapsed real time)\n",
+    printf(" %s ms (max round trip time)\n", sprint_tm(max_reply));
+    printf(" %12.3f sec (elapsed real time)\n",
         timeval_diff(&end_time, &start_time) / 100000.0);
-    fprintf(stderr, "\n");
+    printf("\n");
 }
 
 /************************************************************
@@ -1663,15 +1670,15 @@ int wait_for_reply(long wait_time)
         if ((this_count >= 0) && (this_count < trials)) {
             if (h->resp_times[this_count] >= 0) {
                 if (!per_recv_flag) {
-                    fprintf(stderr, "%s : duplicate for [%d], %d bytes, %s ms",
+                    printf("1-%s : duplicate for [%d], %d bytes, %s ms",
                         h->host, this_count, result, sprint_tm(this_reply));
 
                     if (addr_cmp((struct sockaddr*)&response_addr, (struct sockaddr*)&h->saddr)) {
                         char buf[INET6_ADDRSTRLEN];
                         getnameinfo((struct sockaddr*)&response_addr, sizeof(response_addr), buf, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
-                        fprintf(stderr, " [<- %s]", buf);
+                        printf(" [<- %s]", buf);
                     }
-                    fprintf(stderr, "\n");
+                    printf("\n");
                 }
             }
             else
@@ -1679,7 +1686,7 @@ int wait_for_reply(long wait_time)
         }
         else {
             /* count is out of bounds?? */
-            fprintf(stderr, "%s : duplicate for [%d], %d bytes, %s ms\n",
+            printf("2-%s : duplicate for [%d], %d bytes, %s ms\n",
                 h->host, this_count, result, sprint_tm(this_reply));
         }
     }
@@ -1695,7 +1702,7 @@ int wait_for_reply(long wait_time)
             if (addr_cmp((struct sockaddr*)&response_addr, (struct sockaddr*)&h->saddr)) {
                 char buf[INET6_ADDRSTRLEN];
                 getnameinfo((struct sockaddr*)&response_addr, sizeof(response_addr), buf, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
-                fprintf(stderr, " [<- %s]", buf);
+                printf(" [<- %s]", buf);
             }
 
             printf("\n");
@@ -1725,7 +1732,7 @@ int wait_for_reply(long wait_time)
         if (addr_cmp((struct sockaddr*)&response_addr, (struct sockaddr*)&h->saddr)) {
             char buf[INET6_ADDRSTRLEN];
             getnameinfo((struct sockaddr*)&response_addr, sizeof(response_addr), buf, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
-            fprintf(stderr, " [<- %s]", buf);
+            printf(" [<- %s]", buf);
         }
 
         printf("\n");
@@ -1913,7 +1920,7 @@ void remove_job(HOST_ENTRY* h)
 
 int crash_and_burn(const char* message)
 {
-    fprintf(stderr, "%s\n", message);
+    printf("%s\n", message);
 
     return -1;
 }
@@ -1932,7 +1939,7 @@ int crash_and_burn(const char* message)
 
 void errno_crash_and_burn(char* message)
 {
-    fprintf(stderr, "%s : %s\n", message, strerror(errno));
+    printf("%s : %s\n", message, strerror(errno));
     exit(4);
 }
 
@@ -1940,7 +1947,7 @@ void errno_crash_and_burn(char* message)
 
   Function: print_warning
 
-  Description: fprintf(stderr, ...), unless running with -q
+  Description: printf(...), unless running with -q
 
 *************************************************************/
 
@@ -1949,7 +1956,7 @@ void print_warning(char* format, ...)
     va_list args;
     if (!quiet_flag) {
         va_start(args, format);
-        vfprintf(stderr, format, args);
+        vprintf(format, args);
         va_end(args);
     }
 }
@@ -2093,7 +2100,7 @@ void ev_enqueue(HOST_ENTRY* h)
 #if defined(DEBUG) || defined(_DEBUG)
     if (trace_flag) {
         long st = timeval_diff(&h->ev_time, &current_time);
-        fprintf(stderr, "Enqueue: host=%s, when=%d ms (%d, %d)\n", h->host, st / 100, h->ev_time.tv_sec, h->ev_time.tv_usec);
+        printf("Enqueue: host=%s, when=%d ms (%d, %d)\n", h->host, st / 100, h->ev_time.tv_sec, h->ev_time.tv_usec);
     }
 #endif
 

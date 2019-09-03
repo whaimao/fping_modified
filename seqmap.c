@@ -71,7 +71,7 @@ unsigned int seqmap_add(unsigned int host_nr, unsigned int ping_count, struct ti
     SEQMAP_VALUE* next_value;
 
     if (!seqmap_map) {
-        fprintf(stderr, "fping internal error: seqmap not initialized.\n");
+        printf("fping internal error: seqmap not initialized.\n");
         exit(4);
     }
 
@@ -79,7 +79,7 @@ unsigned int seqmap_add(unsigned int host_nr, unsigned int ping_count, struct ti
      * 0, so will be seen as expired */
     next_value = &seqmap_map[seqmap_next_id];
     if (next_value->ping_ts.tv_sec != 0 && (now->tv_sec - next_value->ping_ts.tv_sec) < SEQMAP_TIMEOUT_IN_S) {
-        fprintf(stderr, "fping error: not enough sequence numbers available! (expire_timeout=%d, host_nr=%d, ping_count=%d, seqmap_next_id=%d)\n",
+        printf("fping error: not enough sequence numbers available! (expire_timeout=%d, host_nr=%d, ping_count=%d, seqmap_next_id=%d)\n",
             SEQMAP_TIMEOUT_IN_S, host_nr, ping_count, seqmap_next_id);
         exit(4);
     }
