@@ -344,8 +344,8 @@ int main(){
 		}else{
 			printf("network is not alive\n");
 		}
+		sleep(1);
 	}
-	sleep(1);
 	return 0;
 }
 
@@ -384,16 +384,6 @@ int ping(const char* url)
         return -1;
     }
 
-    if (unreachable_flag && alive_flag) {
-        printf("specify only one of a, u\n");
-        return -1;
-    }
-
-    if (count_flag && loop_flag) {
-        printf("specify only one of c, l\n");
-        return -1;
-    }
-
 
     if (ping_data_size > MAX_PING_DATA) {
         printf("data size %u not valid, must be lower than %u\n",
@@ -408,8 +398,8 @@ int ping(const char* url)
     }
 
 
-    //trials = (count > retry + 1) ? count : retry + 1;
-    trials = 1;
+    trials = (count > retry + 1) ? count : retry + 1;
+    //trials = 1;
 
     /* auto-tune default timeout for count/loop modes
      * see also github #32 */
