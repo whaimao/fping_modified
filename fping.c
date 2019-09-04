@@ -333,7 +333,7 @@ int addr_cmp(struct sockaddr* a, struct sockaddr* b);
   Main program entry point
 
 ************************************************************/
-
+static int isAlive;
 int ping(const char* url);
 
 int main(){
@@ -354,6 +354,7 @@ int ping(const char* url)
     int c, i, n;
     char* buf;
     int tos = 0;
+    isAlive = 0;
     HOST_ENTRY* cursor;
 
 
@@ -523,9 +524,9 @@ int ping(const char* url)
     /* main loop */
     main_loop();
 
-    finish();
+    //finish();
 
-    return 0;
+    return isAlive;
 }
 
 
@@ -725,11 +726,11 @@ void finish()
     }
 
     if (num_noaddress){
-    	printf("line=%d", __LINE__);
+    	printf("line=%d\n", __LINE__);
     	exit(2);
     }
     else if (num_alive != num_hosts){
-    	printf("line=%d", __LINE__);
+    	printf("line=%d\n", __LINE__);
     	exit(1);
     }
 
@@ -1563,6 +1564,7 @@ int wait_for_reply(long wait_time)
         num_alive++;
         if (alive_flag) {
             printf("%s is alive", h->host);
+            isAlive = 1;
 
             if (elapsed_flag)
                 printf(" (%s ms)", sprint_tm(this_reply));
